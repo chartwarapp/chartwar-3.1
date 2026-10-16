@@ -1,46 +1,57 @@
-# ChartWar 3.1
+# SFX — real recordings only
 
-Bull vs Bear market-driven fighting game powered by **METE (Market Event Translation Engine)**,
-invented by Long Tran.
+The `AudioEngine` ships **silent by design**. Every slot stays a no-op until
+`loadPack({ name: url })` is called with a real recording. There are no
+synthesized fallbacks anywhere in the client — silence beats an unapproved
+synth, per the project quality bar.
 
-**This is the standalone preview** — the full game running 100% in your browser.
-No server, no sign-up, no real money.
+## Slots
 
-## Play
+| Slot          | When it plays                                  |
+| ------------- | ---------------------------------------------- |
+| `gloveImpact` | A strike lands (jab / cross / hook / kick)     |
+| `swoosh`      | A dodge, miss, or whiffed swing                |
+| `crowd`       | Round start, big momentum swings, knockbacks   |
+| `bell`        | Round open and round close                     |
+| `victory`     | Your side wins a round you entered             |
+| `loss`        | Your side loses a round you entered            |
+| `ambience`    | Looped arena crowd bed while a fight is live   |
 
-Host this directory on any static host (GitHub Pages, Netlify, IPFS) and open `index.html`.
-Live at: `https://chartwarapp.github.io/chartwar-3.1/`
+## How to add real recordings
 
-- 🐂 **Bull wins** if the price closes **ABOVE** the round open.
-- 🐻 **Bear wins** if it closes **BELOW** the round open.
-- Exact tie = **draw** (stake refunded minus a small fee).
-- Pick a side, set your stake, beat the close. You can **protect** an open
-  position mid-round: 75% of stake refunded, 25% fee.
-- First visit shows an onboarding card — *Play tutorial round* jumps straight in.
+1. Record (or license) short clips, one per slot. MP3 or WAV, 44.1kHz.
+2. Drop them in this `sfx/` folder, e.g. `sfx/glove-impact-1.mp3`.
+   (`sfx/` is Vite's public dir — its contents are copied to `dist/` on build.)
+3. Describe them in `sfx/manifest.json`:
 
-Everything is simulated and clearly labeled **DEMO**: a seeded demo market drives
-the fight, and all money is simulation credits (SIM).
-
-## What's inside
-
-- `index.html` + `assets/` — the game (Vite + TypeScript + Canvas 2D, mobile-first).
-- `manifest.json` — SFX pack manifest. Sound slots ship **silent by design**;
-  drop real MP3 recordings next to it and list them in the manifest to enable audio.
-  There are no synthesized fallbacks, ever.
-- `.nojekyll` — tells GitHub Pages to serve `assets/` as-is.
-
-## How it's built
-
-In-browser pipeline, all client-side on the framework-free `mete-core` library:
-
+```json
+{
+  "pack": "arena-pack-1",
+  "files": {
+    "gloveImpact": "glove-impact-1.mp3",
+    "swoosh": "swoosh-1.mp3",
+    "crowd": "crowd-cheer-1.mp3",
+    "bell": "round-bell-1.mp3",
+    "victory": "victory-1.mp3",
+    "loss": "loss-1.mp3",
+    "ambience": "arena-bed-1.mp3"
+  }
+}
 ```
-seeded demo ticks → TickNormalizer → SignalInterpreter → METEEventTranslator
-  → RoundEngine → SettlementEngine → LedgerService → ProtectTradeService
+
+4. Rebuild. On boot the client fetches `manifest.json` and arms each slot:
+
+```ts
+await audio.loadManifest(manifest); // same call the client makes on boot
 ```
 
-Market direction and intensity drive Bull/Bear attacks, guards, dodges, counters,
-knockbacks and auras. Settlement is deterministic from the round's authoritative
-open/close prices; cosmetic animation variants never touch outcomes. Fees are
-conserved exactly (win 3% / loss 3% / draw 5% pool-share model).
+The engine loads each URL, decodes it, and arms the slot. A missing or
+undecodable file keeps that slot silent — playback is a guarded no-op, never
+an exception, never a synth tone.
 
-**Simulation credits only.** No real-money code paths exist anywhere in this build.
+## Quality bar
+
+- Hits must sound like real glove-on-body contact: layered crack, thump, and
+  body. Never thin, hollow, or chime-like.
+- Crowd must be real crowd recordings, never synthesized cheers.
+- The user can mute everything from the header sound toggle (persisted).
